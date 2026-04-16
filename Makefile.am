@@ -62,6 +62,6 @@ deb: dist
 	}
 	@rm -rf $(abs_builddir)/debbuild
 	@mkdir -p $(abs_builddir)/debbuild
-	tar -xzf $(PACKAGE)-$(VERSION).tar.gz -C $(abs_builddir)/debbuild
+	@tar -xzf $(PACKAGE)-$(VERSION).tar.gz -C $(abs_builddir)/debbuild
 	@cp -a $(srcdir)/packaging/debian $(abs_builddir)/debbuild/$(PACKAGE)-$(VERSION)/debian
-	cd $(abs_builddir)/debbuild/$(PACKAGE)-$(VERSION) && dpkg-buildpackage -us -uc -b
+	@cd $(abs_builddir)/debbuild/$(PACKAGE)-$(VERSION) && dpkg-buildpackage -us -uc -b
