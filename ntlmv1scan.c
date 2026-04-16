@@ -44,6 +44,7 @@ static const size_t ntlm_auth_nt_len_offset  = 20U;
 static const size_t max_frame_size = 65536U;
 static const size_t max_proc_fields = 32U;
 static const size_t min_proc_tcp_fields = 10U;
+static const size_t process_info_overhead = 40U;
 
 struct scan_stats {
 	unsigned long packets;
@@ -280,19 +281,19 @@ static void describe_responsible_process(uint32_t src_addr_h, uint16_t src_port_
 	unsigned long inode;
 	pid_t pid;
 	char comm[256];
-	int comm_limit = 0;
+	int max_comm_display_len = 0;
 
-	if (buf_len > 40U) {
-		comm_limit = (int)(buf_len - 40U);
-		if (comm_limit > (int)(sizeof(comm) - 1U))
-			comm_limit = (int)(sizeof(comm) - 1U);
+	if (buf_len > process_info_overhead) {
+		max_comm_display_len = (int)(buf_len - process_info_overhead);
+		if (max_comm_display_len > (int)(sizeof(comm) - 1U))
+			max_comm_display_len = (int)(sizeof(comm) - 1U);
 	}
 
 	if (lookup_tcp_socket_inode(src_addr_h, src_port_h, dst_addr_h, dst_port_h, &inode) == 1 &&
 	    lookup_pid_by_inode(inode, &pid) == 1 &&
 	    read_process_name(pid, comm, sizeof(comm)) == 1) {
 		(void)snprintf(buf, buf_len, "src pid=%ld comm=%.*s",
-			       (long)pid, comm_limit, comm);
+			       (long)pid, max_comm_display_len, comm);
 		return;
 	}
 
@@ -300,7 +301,7 @@ static void describe_responsible_process(uint32_t src_addr_h, uint16_t src_port_
 	    lookup_pid_by_inode(inode, &pid) == 1 &&
 	    read_process_name(pid, comm, sizeof(comm)) == 1) {
 		(void)snprintf(buf, buf_len, "dst pid=%ld comm=%.*s",
-			       (long)pid, comm_limit, comm);
+			       (long)pid, max_comm_display_len, comm);
 		return;
 	}
 
