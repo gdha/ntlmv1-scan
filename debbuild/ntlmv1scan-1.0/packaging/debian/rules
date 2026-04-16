@@ -1,0 +1,14 @@
+#!/usr/bin/make -f
+
+HEADER_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../ntlmv1scan.h)
+VERSION := $(shell awk -F'"' '/^#define VERSION / {print $$2; exit}' $(HEADER_PATH))
+
+%:
+	dh $@
+
+override_dh_auto_configure:
+	autoreconf -vfi
+	dh_auto_configure
+
+override_dh_gencontrol:
+	dh_gencontrol -- -v$(VERSION)-1

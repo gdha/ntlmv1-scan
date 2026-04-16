@@ -1,0 +1,15 @@
+Source: ntlmv1scan
+Section: net
+Priority: optional
+Maintainer: ntlmv1scan maintainers <maintainer@example.com>
+Build-Depends: debhelper-compat (= 13), autoconf, automake, gcc, make
+Standards-Version: 4.6.2
+Homepage: https://github.com/gdha/ntlmv1-scan
+Rules-Requires-Root: no
+
+Package: ntlmv1scan
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Detect NTLMv1 authentication traffic on SMB sessions
+ ntlmv1scan captures Linux network traffic and reports potential NTLMv1
+ authentication usage on SMB sessions.
