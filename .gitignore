@@ -1,6 +1,7 @@
 ntlmv1scan
-.o
+*.o
 .deps/
+build-aux/
 Makefile
 Makefile.in
 aclocal.m4

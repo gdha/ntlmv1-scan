@@ -8,7 +8,9 @@ Linux command-line tool to detect NTLMv1 authentication traffic on SMB sessions.
 a Linux AF_PACKET raw socket.  It filters TCP traffic on ports 139 and 445
 (NetBIOS/SMB), searches TCP payloads for NTLMSSP AUTHENTICATE (Type 3)
 messages, and reports any messages where both the LM and NT response lengths
-are 24 bytes — the signature of NTLMv1.
+are 24 bytes — the signature of NTLMv1. For each hit it also performs a
+best-effort lookup of the local Linux process (PID/command) owning the
+matching TCP socket.
 
 Root privileges (or `CAP_NET_RAW`) are required.
 
@@ -55,7 +57,7 @@ errors), making it suitable for use in scripts.
 
 ```
 Scanning interface 'eth0' for NTLMv1 authentication traffic...
-[2026-04-16 07:25:11.003421] Potential NTLMv1 authentication detected (packet_index=42, lm_len=24, nt_len=24)
+[2026-04-16 07:25:11.003421] Potential NTLMv1 authentication detected (packet_index=42, lm_len=24, nt_len=24, process=src pid=2131 comm=smbclient)
 
 Scan summary:
   packets processed          : 500

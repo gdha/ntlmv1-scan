@@ -19,6 +19,8 @@ ntlmv1scan - detect NTLMv1 authentication traffic on Linux systems
 using a Linux AF_PACKET raw socket, filters TCP traffic on SMB ports
 (139 and 445), and flags NTLMSSP AUTHENTICATE (Type 3) messages whose
 LM and NT response lengths are both 24 bytes -- the hallmark of NTLMv1.
+When a hit is found, it performs a best-effort lookup of the local process
+(PID/command) owning the matching TCP socket.
 
 Root privileges (or *CAP_NET_RAW*) are required to open a raw socket.
 
