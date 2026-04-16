@@ -193,8 +193,12 @@ static int read_process_name(pid_t pid, char *name, size_t name_len)
 	fp = fopen(path, "r");
 	if (fp == NULL)
 		return 0;
-	if (name_len > (size_t)INT_MAX)
-		name_len = (size_t)INT_MAX;
+	if (name_len < 2U) {
+		(void)fclose(fp);
+		return 0;
+	}
+	if (name_len > (size_t)(INT_MAX - 1))
+		name_len = (size_t)(INT_MAX - 1);
 	if (fgets(name, (int)name_len, fp) == NULL) {
 		(void)fclose(fp);
 		return 0;
@@ -276,18 +280,27 @@ static void describe_responsible_process(uint32_t src_addr_h, uint16_t src_port_
 	unsigned long inode;
 	pid_t pid;
 	char comm[256];
+	int comm_limit = 0;
+
+	if (buf_len > 40U) {
+		comm_limit = (int)(buf_len - 40U);
+		if (comm_limit > (int)(sizeof(comm) - 1U))
+			comm_limit = (int)(sizeof(comm) - 1U);
+	}
 
 	if (lookup_tcp_socket_inode(src_addr_h, src_port_h, dst_addr_h, dst_port_h, &inode) == 1 &&
 	    lookup_pid_by_inode(inode, &pid) == 1 &&
 	    read_process_name(pid, comm, sizeof(comm)) == 1) {
-		(void)snprintf(buf, buf_len, "src pid=%ld comm=%.200s", (long)pid, comm);
+		(void)snprintf(buf, buf_len, "src pid=%ld comm=%.*s",
+			       (long)pid, comm_limit, comm);
 		return;
 	}
 
 	if (lookup_tcp_socket_inode(dst_addr_h, dst_port_h, src_addr_h, src_port_h, &inode) == 1 &&
 	    lookup_pid_by_inode(inode, &pid) == 1 &&
 	    read_process_name(pid, comm, sizeof(comm)) == 1) {
-		(void)snprintf(buf, buf_len, "dst pid=%ld comm=%.200s", (long)pid, comm);
+		(void)snprintf(buf, buf_len, "dst pid=%ld comm=%.*s",
+			       (long)pid, comm_limit, comm);
 		return;
 	}
 
