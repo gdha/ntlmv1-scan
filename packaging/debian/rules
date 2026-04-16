@@ -1,6 +1,7 @@
 #!/usr/bin/make -f
 
-VERSION := $(shell awk -F'"' '/^#define VERSION / {print $$2; exit}' ../../ntlmv1scan.h)
+HEADER_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../ntlmv1scan.h)
+VERSION := $(shell awk -F'"' '/^#define VERSION / {print $$2; exit}' $(HEADER_PATH))
 
 %:
 	dh $@
