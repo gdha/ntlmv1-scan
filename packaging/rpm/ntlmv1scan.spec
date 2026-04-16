@@ -1,4 +1,4 @@
-%global upstream_version %(awk -F'"' '/^#define VERSION / {print $2; exit}' %{SOURCE1})
+%global upstream_version %(awk -F'"' '/^#define VERSION / {print $2; exit}' %{_sourcedir}/ntlmv1scan.h)
 
 Name:           ntlmv1scan
 Version:        %{upstream_version}
