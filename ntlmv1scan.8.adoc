@@ -1,0 +1,67 @@
+= ntlmv1scan(8)
+:doctype: manpage
+:manmanual: ntlmv1scan Manual
+:mansource: ntlmv1scan 1.0
+:man-linkstyle: pass:[blue R < >]
+
+== NAME
+
+ntlmv1scan - detect NTLMv1 authentication traffic on Linux systems
+
+== SYNOPSIS
+
+*ntlmv1scan* -i _interface_ [*-c* _packet_count_] +
+*ntlmv1scan* *-h*
+
+== DESCRIPTION
+
+*ntlmv1scan* captures raw Ethernet frames from a live network interface
+using a Linux AF_PACKET raw socket, filters TCP traffic on SMB ports
+(139 and 445), and flags NTLMSSP AUTHENTICATE (Type 3) messages whose
+LM and NT response lengths are both 24 bytes -- the hallmark of NTLMv1.
+
+Root privileges (or *CAP_NET_RAW*) are required to open a raw socket.
+
+== OPTIONS
+
+*-i* _interface_::
+  Network interface to capture from (e.g. `eth0`). Required.
+
+*-c* _packet_count_::
+  Stop after _packet_count_ total packets have been received.
+  Default is 0 (unlimited).
+
+*-h*::
+  Print usage and exit.
+
+== EXIT STATUS
+
+*0*::
+  Scan completed; no NTLMv1 traffic was detected.
+
+*1*::
+  Scan completed; at least one potential NTLMv1 authentication was detected.
+  Non-zero is also returned on fatal errors (bad arguments, socket failures).
+
+== EXAMPLES
+
+Scan the `eth0` interface indefinitely:
+
+  # ntlmv1scan -i eth0
+
+Scan the first 10000 captured packets on `ens3`:
+
+  # ntlmv1scan -i ens3 -c 10000
+
+== NOTES
+
+The tool inspects only Ethernet frames carrying IPv4 TCP segments.
+Tunnelled, encapsulated, or VLAN-tagged traffic is not decoded.
+
+== AUTHOR
+
+Gratien Dhaese and contributors
+
+== COPYRIGHT
+
+GPL v3
