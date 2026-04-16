@@ -109,9 +109,26 @@ static int parse_proc_tcp_line(char *line, uint32_t *local_addr_h,
 		return 0;
 
 	errno = 0;
-	*inode = strtoul(fields[9], NULL, 10);
-	if (errno != 0 || *inode == 0UL)
+	{
+		char *endptr = NULL;
+		*inode = strtoul(fields[9], &endptr, 10);
+		if (errno != 0 || endptr == fields[9] || *endptr != '\0' || *inode == 0UL)
+			return 0;
+	}
+
+	return 1;
+}
+
+static int parse_pid(const char *text, pid_t *pid_out)
+{
+	char *endptr = NULL;
+	long value;
+
+	errno = 0;
+	value = strtol(text, &endptr, 10);
+	if (errno != 0 || endptr == text || *endptr != '\0' || value <= 0L)
 		return 0;
+	*pid_out = (pid_t)value;
 
 	return 1;
 }
@@ -232,9 +249,13 @@ static int lookup_pid_by_inode(unsigned long inode, pid_t *pid_out)
 				continue;
 			target[n] = '\0';
 			if (strcmp(target, needle) == 0) {
+				pid_t pid;
+
+				if (parse_pid(proc_entry->d_name, &pid) == 0)
+					continue;
 				(void)closedir(fd_dir);
 				(void)closedir(proc_dir);
-				*pid_out = (pid_t)strtol(proc_entry->d_name, NULL, 10);
+				*pid_out = pid;
 				return 1;
 			}
 		}
