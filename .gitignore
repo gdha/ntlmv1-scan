@@ -17,3 +17,5 @@ libltdl/
 libtool
 stamp-h1
 autom4te.cache/
+*~
+build-aux/
