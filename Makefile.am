@@ -52,9 +52,8 @@ rpm: dist
 	@cp $(srcdir)/packaging/rpm/ntlmv1scan.spec $(abs_builddir)/rpmbuild/SPECS/
 	@cp $(PACKAGE)-$(VERSION).tar.gz $(abs_builddir)/rpmbuild/SOURCES/
 	@cp $(srcdir)/ntlmv1scan.h $(abs_builddir)/rpmbuild/SOURCES/
-	cd $(abs_builddir)/rpmbuild/SOURCES && \
-		rpmbuild -ba $(abs_builddir)/rpmbuild/SPECS/ntlmv1scan.spec \
-			--define "_topdir $(abs_builddir)/rpmbuild"
+	rpmbuild -ba $(abs_builddir)/rpmbuild/SPECS/ntlmv1scan.spec \
+		--define "_topdir $(abs_builddir)/rpmbuild"
 
 deb: dist
 	@command -v dpkg-buildpackage >/dev/null 2>&1 || { \
