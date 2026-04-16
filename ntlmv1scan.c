@@ -43,6 +43,7 @@ static const size_t ntlm_auth_nt_len_offset  = 20U;
 
 static const size_t max_frame_size = 65536U;
 static const size_t max_proc_fields = 32U;
+static const size_t min_proc_tcp_fields = 10U;
 
 struct scan_stats {
 	unsigned long packets;
@@ -72,8 +73,6 @@ static int parse_proc_ipv4_endpoint(const char *token, uint32_t *addr_h,
 
 	if (sscanf(token, "%8X:%4X", &addr_hex, &port_hex) != 2)
 		return 0;
-	if (port_hex > 0xFFFFU)
-		return 0;
 
 	b0 = (unsigned char)(addr_hex & 0xFFU);
 	b1 = (unsigned char)((addr_hex >> 8) & 0xFFU);
@@ -102,7 +101,7 @@ static int parse_proc_tcp_line(char *line, uint32_t *local_addr_h,
 		token = strtok_r(NULL, " \t\r\n", &saveptr);
 	}
 
-	if (field_count <= 9U)
+	if (field_count < min_proc_tcp_fields)
 		return 0;
 	if (parse_proc_ipv4_endpoint(fields[1], local_addr_h, local_port_h) == 0)
 		return 0;
@@ -168,8 +167,11 @@ static int read_process_name(pid_t pid, char *name, size_t name_len)
 {
 	FILE *fp;
 	char path[PATH_MAX];
+	int path_len;
 
-	(void)snprintf(path, sizeof(path), "/proc/%ld/comm", (long)pid);
+	path_len = snprintf(path, sizeof(path), "/proc/%ld/comm", (long)pid);
+	if (path_len < 0 || (size_t)path_len >= sizeof(path))
+		return 0;
 	fp = fopen(path, "r");
 	if (fp == NULL)
 		return 0;
@@ -199,11 +201,15 @@ static int lookup_pid_by_inode(unsigned long inode, pid_t *pid_out)
 		DIR *fd_dir;
 		struct dirent *fd_entry;
 		char fd_path[PATH_MAX];
+		int fd_path_len;
 
 		if (!isdigit((unsigned char)proc_entry->d_name[0]))
 			continue;
 
-		(void)snprintf(fd_path, sizeof(fd_path), "/proc/%s/fd", proc_entry->d_name);
+		fd_path_len = snprintf(fd_path, sizeof(fd_path), "/proc/%s/fd",
+				       proc_entry->d_name);
+		if (fd_path_len < 0 || (size_t)fd_path_len >= sizeof(fd_path))
+			continue;
 		fd_dir = opendir(fd_path);
 		if (fd_dir == NULL)
 			continue;
