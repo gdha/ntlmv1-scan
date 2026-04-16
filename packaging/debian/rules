@@ -1,7 +1,11 @@
 #!/usr/bin/make -f
 
-HEADER_PATH := $(abspath $(dir $(lastword $(MAKEFILE_LIST)))../../ntlmv1scan.h)
-VERSION := $(shell awk -F'"' '/^#define VERSION / {print $$2; exit}' $(HEADER_PATH))
+HEADER_PATH := $(CURDIR)/ntlmv1scan.h
+VERSION := $(shell awk -F'"' '/^#define VERSION / {print $$2; exit}' $(HEADER_PATH) 2>/dev/null)
+
+ifeq ($(strip $(VERSION)),)
+VERSION := $(shell dpkg-parsechangelog -SVersion | sed 's/-[^-]*$$//')
+endif
 
 %:
 	dh $@
