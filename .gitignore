@@ -20,3 +20,5 @@ stamp-h1
 autom4te.cache/
 *~
 build-aux/
+debbuild/
+ntlmv1scan-*.tar.gz

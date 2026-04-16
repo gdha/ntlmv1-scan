@@ -1,5 +1,0 @@
-ntlmv1scan (0.0-1) unstable; urgency=medium
-
-  * Initial Debian packaging.
-
- -- ntlmv1scan maintainers <maintainer@example.com>  Thu, 16 Apr 2026 09:59:26 +0000
