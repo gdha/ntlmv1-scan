@@ -126,7 +126,8 @@ static int parse_pid(const char *text, pid_t *pid_out)
 
 	errno = 0;
 	value = strtol(text, &endptr, 10);
-	if (errno != 0 || endptr == text || *endptr != '\0' || value <= 0L)
+	if (errno != 0 || endptr == text || *endptr != '\0' ||
+	    value <= 0L || value > (long)INT_MAX)
 		return 0;
 	*pid_out = (pid_t)value;
 
@@ -192,6 +193,8 @@ static int read_process_name(pid_t pid, char *name, size_t name_len)
 	fp = fopen(path, "r");
 	if (fp == NULL)
 		return 0;
+	if (name_len > (size_t)INT_MAX)
+		name_len = (size_t)INT_MAX;
 	if (fgets(name, (int)name_len, fp) == NULL) {
 		(void)fclose(fp);
 		return 0;
