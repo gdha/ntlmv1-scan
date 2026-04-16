@@ -12,9 +12,12 @@
  */
 
 #include <arpa/inet.h>
+#include <ctype.h>
+#include <dirent.h>
 #include <errno.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
+#include <limits.h>
 #include <net/if.h>
 #include <netinet/ip.h>
 #include <netinet/tcp.h>
@@ -39,6 +42,7 @@ static const size_t ntlm_auth_lm_len_offset  = 12U;
 static const size_t ntlm_auth_nt_len_offset  = 20U;
 
 static const size_t max_frame_size = 65536U;
+static const size_t max_proc_fields = 32U;
 
 struct scan_stats {
 	unsigned long packets;
@@ -56,6 +60,210 @@ static uint32_t read_le32(const unsigned char *p)
 	return (uint32_t)(p[0] | (p[1] << 8) | (p[2] << 16) | (p[3] << 24));
 }
 
+static int parse_proc_ipv4_endpoint(const char *token, uint32_t *addr_h,
+				    uint16_t *port_h)
+{
+	unsigned int addr_hex;
+	unsigned int port_hex;
+	unsigned char b0;
+	unsigned char b1;
+	unsigned char b2;
+	unsigned char b3;
+
+	if (sscanf(token, "%8X:%4X", &addr_hex, &port_hex) != 2)
+		return 0;
+	if (port_hex > 0xFFFFU)
+		return 0;
+
+	b0 = (unsigned char)(addr_hex & 0xFFU);
+	b1 = (unsigned char)((addr_hex >> 8) & 0xFFU);
+	b2 = (unsigned char)((addr_hex >> 16) & 0xFFU);
+	b3 = (unsigned char)((addr_hex >> 24) & 0xFFU);
+
+	*addr_h = ((uint32_t)b0 << 24) | ((uint32_t)b1 << 16) |
+		  ((uint32_t)b2 << 8) | (uint32_t)b3;
+	*port_h = (uint16_t)port_hex;
+
+	return 1;
+}
+
+static int parse_proc_tcp_line(char *line, uint32_t *local_addr_h,
+			       uint16_t *local_port_h, uint32_t *remote_addr_h,
+			       uint16_t *remote_port_h, unsigned long *inode)
+{
+	char *fields[max_proc_fields];
+	size_t field_count = 0U;
+	char *saveptr = NULL;
+	char *token;
+
+	token = strtok_r(line, " \t\r\n", &saveptr);
+	while (token != NULL && field_count < max_proc_fields) {
+		fields[field_count++] = token;
+		token = strtok_r(NULL, " \t\r\n", &saveptr);
+	}
+
+	if (field_count <= 9U)
+		return 0;
+	if (parse_proc_ipv4_endpoint(fields[1], local_addr_h, local_port_h) == 0)
+		return 0;
+	if (parse_proc_ipv4_endpoint(fields[2], remote_addr_h, remote_port_h) == 0)
+		return 0;
+
+	errno = 0;
+	*inode = strtoul(fields[9], NULL, 10);
+	if (errno != 0 || *inode == 0UL)
+		return 0;
+
+	return 1;
+}
+
+static int lookup_tcp_socket_inode(uint32_t local_addr_h, uint16_t local_port_h,
+				   uint32_t remote_addr_h, uint16_t remote_port_h,
+				   unsigned long *inode_out)
+{
+	FILE *fp;
+	char line[512];
+	unsigned long fallback_inode = 0UL;
+
+	fp = fopen("/proc/net/tcp", "r");
+	if (fp == NULL)
+		return 0;
+
+	while (fgets(line, sizeof(line), fp) != NULL) {
+		uint32_t proc_local_addr_h;
+		uint16_t proc_local_port_h;
+		uint32_t proc_remote_addr_h;
+		uint16_t proc_remote_port_h;
+		unsigned long proc_inode;
+
+		if (parse_proc_tcp_line(line,
+					&proc_local_addr_h, &proc_local_port_h,
+					&proc_remote_addr_h, &proc_remote_port_h,
+					&proc_inode) == 0)
+			continue;
+		if (proc_local_addr_h != local_addr_h || proc_local_port_h != local_port_h)
+			continue;
+
+		if (proc_remote_addr_h == remote_addr_h && proc_remote_port_h == remote_port_h) {
+			*inode_out = proc_inode;
+			(void)fclose(fp);
+			return 1;
+		}
+
+		if (fallback_inode == 0UL)
+			fallback_inode = proc_inode;
+	}
+
+	(void)fclose(fp);
+
+	if (fallback_inode != 0UL) {
+		*inode_out = fallback_inode;
+		return 1;
+	}
+
+	return 0;
+}
+
+static int read_process_name(pid_t pid, char *name, size_t name_len)
+{
+	FILE *fp;
+	char path[PATH_MAX];
+
+	(void)snprintf(path, sizeof(path), "/proc/%ld/comm", (long)pid);
+	fp = fopen(path, "r");
+	if (fp == NULL)
+		return 0;
+	if (fgets(name, (int)name_len, fp) == NULL) {
+		(void)fclose(fp);
+		return 0;
+	}
+	(void)fclose(fp);
+
+	name[strcspn(name, "\r\n")] = '\0';
+	return (name[0] != '\0');
+}
+
+static int lookup_pid_by_inode(unsigned long inode, pid_t *pid_out)
+{
+	DIR *proc_dir;
+	struct dirent *proc_entry;
+	char needle[64];
+
+	(void)snprintf(needle, sizeof(needle), "socket:[%lu]", inode);
+
+	proc_dir = opendir("/proc");
+	if (proc_dir == NULL)
+		return 0;
+
+	while ((proc_entry = readdir(proc_dir)) != NULL) {
+		DIR *fd_dir;
+		struct dirent *fd_entry;
+		char fd_path[PATH_MAX];
+
+		if (!isdigit((unsigned char)proc_entry->d_name[0]))
+			continue;
+
+		(void)snprintf(fd_path, sizeof(fd_path), "/proc/%s/fd", proc_entry->d_name);
+		fd_dir = opendir(fd_path);
+		if (fd_dir == NULL)
+			continue;
+
+		while ((fd_entry = readdir(fd_dir)) != NULL) {
+			char link_path[PATH_MAX];
+			char target[128];
+			ssize_t n;
+			int path_len;
+
+			if (fd_entry->d_name[0] == '.')
+				continue;
+
+			path_len = snprintf(link_path, sizeof(link_path), "%s/%s",
+					    fd_path, fd_entry->d_name);
+			if (path_len < 0 || (size_t)path_len >= sizeof(link_path))
+				continue;
+			n = readlink(link_path, target, sizeof(target) - 1U);
+			if (n < 0)
+				continue;
+			target[n] = '\0';
+			if (strcmp(target, needle) == 0) {
+				(void)closedir(fd_dir);
+				(void)closedir(proc_dir);
+				*pid_out = (pid_t)strtol(proc_entry->d_name, NULL, 10);
+				return 1;
+			}
+		}
+		(void)closedir(fd_dir);
+	}
+
+	(void)closedir(proc_dir);
+	return 0;
+}
+
+static void describe_responsible_process(uint32_t src_addr_h, uint16_t src_port_h,
+					 uint32_t dst_addr_h, uint16_t dst_port_h,
+					 char *buf, size_t buf_len)
+{
+	unsigned long inode;
+	pid_t pid;
+	char comm[256];
+
+	if (lookup_tcp_socket_inode(src_addr_h, src_port_h, dst_addr_h, dst_port_h, &inode) == 1 &&
+	    lookup_pid_by_inode(inode, &pid) == 1 &&
+	    read_process_name(pid, comm, sizeof(comm)) == 1) {
+		(void)snprintf(buf, buf_len, "src pid=%ld comm=%.200s", (long)pid, comm);
+		return;
+	}
+
+	if (lookup_tcp_socket_inode(dst_addr_h, dst_port_h, src_addr_h, src_port_h, &inode) == 1 &&
+	    lookup_pid_by_inode(inode, &pid) == 1 &&
+	    read_process_name(pid, comm, sizeof(comm)) == 1) {
+		(void)snprintf(buf, buf_len, "dst pid=%ld comm=%.200s", (long)pid, comm);
+		return;
+	}
+
+	(void)snprintf(buf, buf_len, "unavailable");
+}
+
 static void format_timestamp(const struct timeval *ts, char *buf, size_t buf_len)
 {
 	struct tm tm_value;
@@ -70,10 +278,13 @@ static void format_timestamp(const struct timeval *ts, char *buf, size_t buf_len
 }
 
 static void inspect_ntlm_payload(const unsigned char *payload, size_t payload_len,
+				  uint32_t src_addr_h, uint16_t src_port_h,
+				  uint32_t dst_addr_h, uint16_t dst_port_h,
 				  const struct timeval *ts, struct scan_stats *stats)
 {
 	size_t i;
 	char when[64];
+	char process[256];
 
 	/* Walk the payload looking for NTLMSSP AUTHENTICATE messages.
 	 * The loop bound ensures we can safely read the NT response length
@@ -97,13 +308,16 @@ static void inspect_ntlm_payload(const unsigned char *payload, size_t payload_le
 		if (lm_response_len == 24U && nt_response_len == 24U) {
 			stats->ntlmv1_hits++;
 			format_timestamp(ts, when, sizeof(when));
+			describe_responsible_process(src_addr_h, src_port_h, dst_addr_h, dst_port_h,
+						     process, sizeof(process));
 			(void)printf(
 				"[%s.%06ld] Potential NTLMv1 authentication detected "
-				"(packet_index=%lu, lm_len=%u, nt_len=%u)\n",
+				"(packet_index=%lu, lm_len=%u, nt_len=%u, process=%s)\n",
 				when, (long)ts->tv_usec,
 				stats->packets,
 				(unsigned int)lm_response_len,
-				(unsigned int)nt_response_len);
+				(unsigned int)nt_response_len,
+				process);
 		}
 
 		/* Skip ahead past this authenticate header to avoid rescanning
@@ -127,6 +341,10 @@ static void process_frame(const unsigned char *frame, ssize_t frame_len,
 	size_t                ip_hdr_len;
 	size_t                tcp_hdr_len;
 	size_t                payload_len;
+	uint32_t              src_addr_h;
+	uint32_t              dst_addr_h;
+	uint16_t              src_port_h;
+	uint16_t              dst_port_h;
 
 	if (frame_len < (ssize_t)sizeof(struct ethhdr))
 		return;
@@ -149,7 +367,9 @@ static void process_frame(const unsigned char *frame, ssize_t frame_len,
 		return;
 
 	tcp = (const struct tcphdr *)(frame + sizeof(struct ethhdr) + ip_hdr_len);
-	if (!is_smb_port(ntohs(tcp->source)) && !is_smb_port(ntohs(tcp->dest)))
+	src_port_h = ntohs(tcp->source);
+	dst_port_h = ntohs(tcp->dest);
+	if (!is_smb_port(src_port_h) && !is_smb_port(dst_port_h))
 		return;
 
 	tcp_hdr_len = (size_t)tcp->doff * 4U;
@@ -163,7 +383,12 @@ static void process_frame(const unsigned char *frame, ssize_t frame_len,
 	if (payload_len == 0U)
 		return;
 
-	inspect_ntlm_payload(payload, payload_len, ts, stats);
+	src_addr_h = ntohl(ip->saddr);
+	dst_addr_h = ntohl(ip->daddr);
+
+	inspect_ntlm_payload(payload, payload_len,
+			     src_addr_h, src_port_h, dst_addr_h, dst_port_h,
+			     ts, stats);
 }
 
 static void usage(const char *prog)
