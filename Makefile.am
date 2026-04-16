@@ -10,7 +10,13 @@ ntlmv1scan_LDADD   =
 
 ACLOCAL_AMFLAGS = -I build-aux
 
-EXTRA_DIST = ntlmv1scan.8.adoc
+EXTRA_DIST = \
+	ntlmv1scan.8.adoc \
+	packaging/debian/changelog \
+	packaging/debian/control \
+	packaging/debian/rules \
+	packaging/debian/source/format \
+	packaging/rpm/ntlmv1scan.spec
 
 if USE_ASCIIDOC
 # begin of USE_ASCIIDOC
@@ -33,3 +39,29 @@ man:
 	}
 endif
 # end of USE_ASCIIDOC
+
+.PHONY: rpm deb
+
+rpm: dist
+	@command -v rpmbuild >/dev/null 2>&1 || { \
+		echo "error: rpmbuild is required to build RPM packages"; \
+		exit 1; \
+	}
+	@rm -rf $(abs_builddir)/rpmbuild
+	@mkdir -p $(abs_builddir)/rpmbuild/SPECS $(abs_builddir)/rpmbuild/SOURCES
+	@cp $(srcdir)/packaging/rpm/ntlmv1scan.spec $(abs_builddir)/rpmbuild/SPECS/
+	@cp $(PACKAGE)-$(VERSION).tar.gz $(abs_builddir)/rpmbuild/SOURCES/
+	@cp $(srcdir)/ntlmv1scan.h $(abs_builddir)/rpmbuild/SOURCES/
+	rpmbuild -ba $(abs_builddir)/rpmbuild/SPECS/ntlmv1scan.spec \
+		--define "_topdir $(abs_builddir)/rpmbuild"
+
+deb: dist
+	@command -v dpkg-buildpackage >/dev/null 2>&1 || { \
+		echo "error: dpkg-buildpackage is required to build DEB packages"; \
+		exit 1; \
+	}
+	@rm -rf $(abs_builddir)/debbuild
+	@mkdir -p $(abs_builddir)/debbuild
+	tar -xzf $(PACKAGE)-$(VERSION).tar.gz -C $(abs_builddir)/debbuild
+	@cp -a $(srcdir)/packaging/debian $(abs_builddir)/debbuild/$(PACKAGE)-$(VERSION)/debian
+	cd $(abs_builddir)/debbuild/$(PACKAGE)-$(VERSION) && dpkg-buildpackage -us -uc -b
