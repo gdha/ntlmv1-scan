@@ -15,6 +15,10 @@ AC_PROG_MAKE_SET
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 
+AC_CHECK_PROGS([ASCIIDOC], [asciidoc], [])
+AC_CHECK_PROGS([XMLTO], [xmlto], [])
+AM_CONDITIONAL([USE_ASCIIDOC], [test -n "$ASCIIDOC" && test -n "$XMLTO"])
+
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h unistd.h errno.h])
 AC_CHECK_HEADERS([arpa/inet.h linux/if_ether.h linux/if_packet.h])
