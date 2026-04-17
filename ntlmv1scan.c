@@ -3,7 +3,7 @@
  * Author: Gratien Dhaese and contributors
  * License: GPL v3
  *
- * Captures raw Ethernet frames from a live interface using AF_PACKET sockets,
+ * Captures raw Ethernet frames from a live interface (or all interfaces) using AF_PACKET sockets,
  * filters to SMB TCP traffic (ports 139/445), and flags NTLMSSP AUTHENTICATE
  * (Type 3) messages whose LM and NT response lengths are both 24 bytes, which
  * is the hallmark of NTLMv1.
@@ -441,6 +441,7 @@ static void usage(const char *prog)
 		      "Usage: %s -i interface [-c packet_count]\n"
 		      "\n"
 		      "  -i interface     Capture live traffic from interface (root required)\n"
+		      "                   Use 'all' to capture from all available interfaces\n"
 		      "  -c packet_count  Stop after <packet_count> total packets (0 = unlimited)\n"
 		      "  -h               Show this help and exit\n"
 		      "\n"
@@ -491,37 +492,51 @@ int main(int argc, char **argv)
 		return EXIT_FAILURE;
 	}
 
-	sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
-	if (sockfd < 0) {
-		perror("socket");
-		return EXIT_FAILURE;
-	}
-
 	{
-		struct ifreq      ifr;
-		struct sockaddr_ll sll;
+		int scan_all = (strcmp(interface_name, "all") == 0);
 
-		memset(&ifr, 0, sizeof(ifr));
-		(void)strncpy(ifr.ifr_name, interface_name, IFNAMSIZ - 1);
-		if (ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0) {
-			perror("SIOCGIFINDEX");
-			(void)close(sockfd);
+		sockfd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
+		if (sockfd < 0) {
+			perror("socket");
 			return EXIT_FAILURE;
 		}
 
-		memset(&sll, 0, sizeof(sll));
-		sll.sll_family   = AF_PACKET;
-		sll.sll_protocol = htons(ETH_P_ALL);
-		sll.sll_ifindex  = ifr.ifr_ifindex;
-		if (bind(sockfd, (struct sockaddr *)&sll, sizeof(sll)) < 0) {
-			perror("bind");
-			(void)close(sockfd);
-			return EXIT_FAILURE;
+		{
+			struct sockaddr_ll sll;
+
+			memset(&sll, 0, sizeof(sll));
+			sll.sll_family   = AF_PACKET;
+			sll.sll_protocol = htons(ETH_P_ALL);
+
+			if (scan_all) {
+				/* sll_ifindex = 0 means capture from all interfaces */
+				sll.sll_ifindex = 0;
+			} else {
+				struct ifreq ifr;
+
+				memset(&ifr, 0, sizeof(ifr));
+				(void)strncpy(ifr.ifr_name, interface_name, IFNAMSIZ - 1);
+				if (ioctl(sockfd, SIOCGIFINDEX, &ifr) < 0) {
+					perror("SIOCGIFINDEX");
+					(void)close(sockfd);
+					return EXIT_FAILURE;
+				}
+				sll.sll_ifindex = ifr.ifr_ifindex;
+			}
+
+			if (bind(sockfd, (struct sockaddr *)&sll, sizeof(sll)) < 0) {
+				perror("bind");
+				(void)close(sockfd);
+				return EXIT_FAILURE;
+			}
 		}
+
+		if (scan_all)
+			(void)printf("Scanning all interfaces for NTLMv1 authentication traffic...\n");
+		else
+			(void)printf("Scanning interface '%s' for NTLMv1 authentication traffic...\n",
+				     interface_name);
 	}
-
-	(void)printf("Scanning interface '%s' for NTLMv1 authentication traffic...\n",
-		     interface_name);
 
 	while (packet_count == 0UL || stats.packets < packet_count) {
 		ssize_t       frame_len;
