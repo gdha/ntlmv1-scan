@@ -10,13 +10,14 @@ ntlmv1scan - detect NTLMv1 authentication traffic on Linux systems
 
 == SYNOPSIS
 
-*ntlmv1scan* -i _interface_ [*-c* _packet_count_] +
+*ntlmv1scan* -i _interface_|*all* [*-c* _packet_count_] +
 *ntlmv1scan* *-h*
 
 == DESCRIPTION
 
 *ntlmv1scan* captures raw Ethernet frames from a live network interface
-using a Linux AF_PACKET raw socket, filters TCP traffic on SMB ports
+(or from all available interfaces when *all* is specified) using a Linux
+AF_PACKET raw socket, filters TCP traffic on SMB ports
 (139 and 445), and flags NTLMSSP AUTHENTICATE (Type 3) messages whose
 LM and NT response lengths are both 24 bytes -- the hallmark of NTLMv1.
 When a hit is found, it performs a best-effort lookup of the local process
@@ -26,8 +27,9 @@ Root privileges (or *CAP_NET_RAW*) are required to open a raw socket.
 
 == OPTIONS
 
-*-i* _interface_::
-  Network interface to capture from (e.g. `eth0`). Required.
+*-i* _interface_|*all*::
+  Network interface to capture from (e.g. `eth0`), or `all` to capture
+  from all available network interfaces simultaneously. Required.
 
 *-c* _packet_count_::
   Stop after _packet_count_ total packets have been received.
@@ -54,6 +56,10 @@ Scan the `eth0` interface indefinitely:
 Scan the first 10000 captured packets on `ens3`:
 
   # ntlmv1scan -i ens3 -c 10000
+
+Scan all available interfaces indefinitely:
+
+  # ntlmv1scan -i all
 
 == NOTES
 

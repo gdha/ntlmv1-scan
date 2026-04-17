@@ -42,6 +42,9 @@ sudo make install
 # Scan interface eth0 indefinitely
 sudo ./ntlmv1scan -i eth0
 
+# Scan all available interfaces indefinitely
+sudo ./ntlmv1scan -i all
+
 # Scan first 10000 packets on ens3
 sudo ./ntlmv1scan -i ens3 -c 10000
 
@@ -63,6 +66,12 @@ Scan summary:
   packets processed          : 500
   NTLM authenticate messages : 1
   potential NTLMv1 hits      : 1
+```
+
+When scanning all interfaces the opening line reads:
+
+```
+Scanning all interfaces for NTLMv1 authentication traffic...
 ```
 
 ## Limitations
