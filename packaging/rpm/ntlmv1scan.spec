@@ -30,6 +30,15 @@ if [ ! -f README.md ]; then
         fi
     done
 fi
+if [ ! -f README.md ]; then
+    cat > README.md <<'EOF'
+ntlmv1scan
+=========
+
+Detect NTLMv1 authentication traffic on SMB sessions.
+EOF
+    echo "Generated fallback README.md for RPM documentation" >&2
+fi
 
 %build
 autoreconf -vfi
