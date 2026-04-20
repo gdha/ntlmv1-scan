@@ -1,0 +1,77 @@
+.\" Manpage for ntlmv1scan.
+.TH NTLMV1SCAN 8 "April 2026" "ntlmv1scan 1.0" "ntlmv1scan Manual"
+.SH NAME
+ntlmv1scan \- detect NTLMv1 authentication traffic on Linux systems
+.SH SYNOPSIS
+.B ntlmv1scan
+\-i
+.IR interface | all
+[\-c
+.IR packet_count ]
+.br
+.B ntlmv1scan
+\-h
+.SH DESCRIPTION
+.B ntlmv1scan
+captures raw Ethernet frames from a live network interface (or from all
+available interfaces when
+.B all
+is specified) using a Linux AF_PACKET raw socket, filters TCP traffic on SMB
+ports 139 and 445, and flags NTLMSSP AUTHENTICATE (Type 3) messages whose LM
+and NT response lengths are both 24 bytes.
+When a hit is found, it performs a best-effort lookup of the local process
+(PID/command) owning the matching TCP socket.
+.PP
+Root privileges (or
+.BR CAP_NET_RAW )
+are required to open a raw socket.
+.SH OPTIONS
+.TP
+.B \-i
+.IR interface | all
+Network interface to capture from (for example
+.BR eth0 ),
+or
+.B all
+to capture from all available network interfaces simultaneously.
+This option is required.
+.TP
+.B \-c
+.IR packet_count
+Stop after
+.I packet_count
+total packets have been received.
+Default is 0 (unlimited).
+.TP
+.B \-h
+Print usage and exit.
+.SH EXIT STATUS
+.TP
+.B 0
+Scan completed and no NTLMv1 traffic was detected.
+.TP
+.B 1
+At least one potential NTLMv1 authentication was detected.
+Non-zero is also returned on fatal errors.
+.SH EXAMPLES
+Scan the
+.B eth0
+interface indefinitely:
+.IP
+.B # ntlmv1scan -i eth0
+.PP
+Scan the first 10000 captured packets on
+.BR ens3 :
+.IP
+.B # ntlmv1scan -i ens3 -c 10000
+.PP
+Scan all available interfaces indefinitely:
+.IP
+.B # ntlmv1scan -i all
+.SH NOTES
+The tool inspects only Ethernet frames carrying IPv4 TCP segments.
+Tunnelled, encapsulated, or VLAN-tagged traffic is not decoded.
+.SH AUTHOR
+Gratien Dhaese and contributors
+.SH COPYRIGHT
+GPL v3
