@@ -25,6 +25,7 @@ if [ ! -f README.md ]; then
     for candidate in README README.txt README.rst; do
         if [ -f "$candidate" ]; then
             cp -p "$candidate" README.md
+            echo "Using $candidate as README.md"
             break
         fi
     done
