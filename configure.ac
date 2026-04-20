@@ -6,13 +6,13 @@ AC_INIT([ntlmv1scan], [1.0], [gratien.dhaese at gmail.com], [],
         [https://github.com/gdha/ntlmv1-scan])
 AC_CONFIG_SRCDIR([ntlmv1scan.c])
 AC_CONFIG_HEADERS([config.h])
+AC_CONFIG_AUX_DIR([build-aux])
 
 # Checks for programs.
 AC_PROG_CC
 AC_PROG_INSTALL
 AC_PROG_MAKE_SET
 
-AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign -Wall -Werror])
 
 AC_CHECK_PROGS([ASCIIDOC], [asciidoc], [])
