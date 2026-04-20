@@ -31,6 +31,7 @@ if [ ! -f README.md ]; then
     done
 fi
 if [ ! -f README.md ]; then
+    # Defensive fallback for downstream source tarballs that may omit README.md.
     cat > README.md <<'EOF'
 ntlmv1scan
 =========
