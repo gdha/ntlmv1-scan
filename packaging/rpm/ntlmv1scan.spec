@@ -21,6 +21,15 @@ authentication usage on SMB sessions.
 
 %prep
 %autosetup -n %{name}-%{version}
+if [ ! -f README.md ]; then
+    for candidate in README README.txt README.rst; do
+        if [ -f "$candidate" ]; then
+            cp -p "$candidate" README.md
+            echo "Using $candidate as README.md" >&2
+            break
+        fi
+    done
+fi
 
 %build
 autoreconf -vfi
