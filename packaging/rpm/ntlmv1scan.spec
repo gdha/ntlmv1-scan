@@ -36,6 +36,9 @@ ntlmv1scan
 =========
 
 Detect NTLMv1 authentication traffic on SMB sessions.
+
+Project URL: https://github.com/gdha/ntlmv1-scan
+License: GPL-3.0-only
 EOF
     echo "Generated fallback README.md for RPM documentation" >&2
 fi
