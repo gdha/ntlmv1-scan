@@ -11,6 +11,7 @@ ntlmv1scan_LDADD   =
 ACLOCAL_AMFLAGS = -I build-aux
 
 EXTRA_DIST = \
+	README.md \
 	ntlmv1scan.8 \
 	ntlmv1scan.8.adoc \
 	packaging/debian/changelog \

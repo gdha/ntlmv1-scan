@@ -30,6 +30,19 @@ if [ ! -f README.md ]; then
         fi
     done
 fi
+if [ ! -f README.md ]; then
+    # Defensive fallback for downstream source tarballs that may omit README.md.
+    cat > README.md <<'EOF'
+ntlmv1scan
+=========
+
+Detect NTLMv1 authentication traffic on SMB sessions.
+
+Project URL: https://github.com/gdha/ntlmv1-scan
+License: GPL-3.0-only
+EOF
+    echo "Generated fallback README.md for RPM documentation" >&2
+fi
 
 %build
 autoreconf -vfi
