@@ -11,6 +11,7 @@ ntlmv1scan_LDADD   =
 ACLOCAL_AMFLAGS = -I build-aux
 
 EXTRA_DIST = \
+	ntlmv1scan.8 \
 	ntlmv1scan.8.adoc \
 	packaging/debian/changelog \
 	packaging/debian/control \
@@ -18,13 +19,13 @@ EXTRA_DIST = \
 	packaging/debian/source/format \
 	packaging/rpm/ntlmv1scan.spec
 
+dist_man_MANS = ntlmv1scan.8
+
 if USE_ASCIIDOC
 # begin of USE_ASCIIDOC
 
 # asciidoc is in Python and used on Fedora and RHEL and cannot generate manpages, so we use xmlto to convert docbooc to manpage
 asciidoc = asciidoc
-
-man: ntlmv1scan.8
 
 ntlmv1scan.8.xml: ntlmv1scan.8.adoc
 	$(asciidoc) -b docbook -d manpage $<
@@ -32,8 +33,8 @@ ntlmv1scan.8.xml: ntlmv1scan.8.adoc
 ntlmv1scan.8: ntlmv1scan.8.xml
 	xmlto man $<
 else
-man:
-	@test -f ntlmv1scan.8 || { \
+ntlmv1scan.8:
+	@test -f $@ || { \
 		echo "error: ntlmv1scan.8 is missing and asciidoc/xmlto are unavailable to rebuild it"; \
 		exit 1; \
 	}
