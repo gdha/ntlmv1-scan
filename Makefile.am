@@ -1,9 +1,6 @@
 
 AM_CFLAGS = -Wall -Wextra -O2
 
-# Use $$2 (not $2) because make consumes one $ before invoking awk.
-VERSION                         = $(shell awk -F'"' '/^#define VERSION / {print $$2; exit}' $(srcdir)/ntlmv1scan.h)
-
 bin_PROGRAMS    = ntlmv1scan
 ntlmv1scan_SOURCES = ntlmv1scan.c ntlmv1scan.h
 ntlmv1scan_LDADD   =
