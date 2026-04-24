@@ -2,7 +2,10 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([ntlmv1scan], [1.0], [gratien.dhaese at gmail.com], [],
+# Read the version from ntlmv1scan.h so it is the single source of truth.
+m4_define([pkg_version],
+          [m4_esyscmd_s([sed -n 's/^#define VERSION "\(.*\)"/\1/p' ntlmv1scan.h])])
+AC_INIT([ntlmv1scan], [pkg_version], [gratien.dhaese at gmail.com], [],
         [https://github.com/gdha/ntlmv1-scan])
 AC_CONFIG_SRCDIR([ntlmv1scan.c])
 AC_CONFIG_HEADERS([config.h])
